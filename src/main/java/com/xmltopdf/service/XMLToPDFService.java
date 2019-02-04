@@ -40,7 +40,7 @@ public class XMLToPDFService {
                         .map(f -> Files.isDirectory(f) ? f.toString() + "/" : f.toString()).collect(Collectors.toList());
                 HashMap<String, String> xmlMap = new HashMap<>();
                 for (String xml : xmlFiles) {
-                    xmlMap.put(xml.substring(0, xml.lastIndexOf("/")), xml);
+                    xmlMap.put(Paths.get(xml).getParent().toString(), xml);
                 }
 
 
@@ -50,7 +50,7 @@ public class XMLToPDFService {
 
                 HashMap<String, String> xslMap = new HashMap<>();
                 for (String xsl : xslFiles) {
-                    xslMap.put(xsl.substring(0, xsl.lastIndexOf("/")), xsl);
+                    xslMap.put(Paths.get(xsl).getParent().toString(), xsl);
                 }
 
 
@@ -142,7 +142,9 @@ public class XMLToPDFService {
                 Tidy tidy = new Tidy();
                 tidy.setXHTML(true);
                 tidy.parse(is, fos);
-            } catch (FileNotFoundException e) {
+                fos.close();
+                is.close();
+            } catch (IOException e) {
                 e.printStackTrace();
             }
             FileUtils.deleteQuietly(file);
