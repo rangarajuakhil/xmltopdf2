@@ -14,7 +14,7 @@ public class DeleteController {
 
     @DeleteMapping
     public String deleteFiles(@RequestParam("path") String path){
-        deleteService.deleteHtmlFiles(path);
+        return deleteService.deleteHtmlFiles(path);
     }
 
 }
