@@ -1,5 +1,7 @@
 package com.xmltopdf.service;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import com.xmltopdf.response.ConversionResponse;
 import org.apache.commons.io.FileUtils;
 import org.springframework.http.HttpStatus;
@@ -16,9 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -38,7 +38,7 @@ public class XMLToPDFService {
                 List<String> xmlFiles = pathForXmls
                         .filter(f -> f.toString().endsWith(".xml"))
                         .map(f -> Files.isDirectory(f) ? f.toString() + "/" : f.toString()).collect(Collectors.toList());
-                HashMap<String, String> xmlMap = new HashMap<>();
+                Multimap<String, String> xmlMap = ArrayListMultimap.create();
                 for (String xml : xmlFiles) {
                     xmlMap.put(Paths.get(xml).getParent().toString(), xml);
                 }
@@ -56,17 +56,33 @@ public class XMLToPDFService {
 
                 if (xmlFiles.size() > 0 && xslFiles.size() > 0) {
 
-                    for (Map.Entry<String, String> entry : xmlMap.entrySet()) {
-                        String htmlFile = entry.getValue().replace(".xml", ".html");
-                        String xHtmlFile = entry.getValue().replace(".xml", ".xhtml");
-                        String pdfFileName = entry.getValue().replace(".xml", ".pdf");
+                    Set<String> xmlKeys = xmlMap.keySet();
+                    for (String xmlKey : xmlKeys) {
+                        Collection<String> xmlValues = xmlMap.get(xmlKey);
+                        for (String xmlValue : xmlValues) {
 
-                        String xhtml = convertXMLToXHTML(entry.getValue(), xslMap.get(entry.getKey()), htmlFile, xHtmlFile);
+                            String htmlFile = xmlValue.replace(".xml", ".html");
+                            String xHtmlFile = xmlValue.replace(".xml", ".xhtml");
+                            String pdfFileName = xmlValue.replace(".xml", ".pdf");
 
-                        if (xhtml != null) {
-                            createPDF(new File(xhtml), pdfFileName);
+                            String xhtml = convertXMLToXHTML(xmlValue, xslMap.get(xmlKey), htmlFile, xHtmlFile);
+
+                            System.out.println("***********CONVERSION START*****************");
+                            System.out.println("XML File: " + xmlValue);
+                            System.out.println("XSL File: " + xslMap.get(xmlKey));
+
+                            if (xhtml != null) {
+                                System.out.println("XHTML File: " + xhtml);
+                                createPDF(new File(xhtml), pdfFileName);
+                                FileUtils.deleteQuietly(new File(xHtmlFile));
+                                FileUtils.deleteQuietly(new File(htmlFile));
+                            }
+
                         }
+
                     }
+
+                    System.out.println("***********CONVERSION END*****************");
 
                 } else {
                     return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ConversionResponse(
@@ -75,7 +91,7 @@ public class XMLToPDFService {
                 }
 
                 return ResponseEntity.ok().body(new ConversionResponse(
-                        "Converted " + xmlFiles.size() + "  XML Files to Using " + xslFiles.size() + "  XSL Files In the Folder: " + path
+                        "Converted " + xmlFiles.size() + "  XML Files to PDF Using " + xslFiles.size() + "  XSL Files In the Folder: " + path
                 ));
 
 
@@ -109,7 +125,6 @@ public class XMLToPDFService {
             renderer.createPDF(os);
 
             os.close();
-            FileUtils.deleteQuietly(xhtmlFile);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -136,7 +151,7 @@ public class XMLToPDFService {
 
             File file = new File(htmlFile);
 
-            try  {
+            try {
                 FileOutputStream fos = new FileOutputStream(xhtmlFile);
                 InputStream is = new FileInputStream(file);
                 Tidy tidy = new Tidy();
@@ -147,7 +162,6 @@ public class XMLToPDFService {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            FileUtils.deleteQuietly(file);
             return xhtmlFile;
         }
         return null;
